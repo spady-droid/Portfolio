@@ -1,12 +1,23 @@
+import Image from "next/image";
 import type { Projeto } from "@/data/projetos";
 
-// Um COMPONENTE reutilizavel. Ele recebe um 'projeto' (a "prop")
-// e devolve o card visual desse projeto.
-// O tipo { projeto: Projeto } diz: "este componente espera receber
-// uma prop chamada 'projeto', do tipo Projeto".
+// Componente reutilizavel: recebe um 'projeto' (prop) e desenha o card.
 export function ProjetoCard({ projeto }: { projeto: Projeto }) {
   return (
     <article className="flex flex-col gap-3 rounded-xl border border-zinc-300 p-5 text-left dark:border-zinc-700">
+      {/* so mostra a imagem SE o projeto tiver uma (renderizacao condicional) */}
+      {projeto.imagem && (
+        <div className="relative aspect-video w-full overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800">
+          <Image
+            src={projeto.imagem}
+            alt={`Captura de tela do projeto ${projeto.titulo}`}
+            fill
+            className="object-cover"
+            sizes="(max-width: 640px) 100vw, 50vw"
+          />
+        </div>
+      )}
+
       <div className="flex items-baseline justify-between gap-2">
         <h3 className="text-lg font-semibold">{projeto.titulo}</h3>
         <span className="text-xs text-zinc-500">{projeto.ano}</span>
@@ -28,7 +39,7 @@ export function ProjetoCard({ projeto }: { projeto: Projeto }) {
         ))}
       </ul>
 
-      {/* so mostra o link SE existir um repo (renderizacao condicional) */}
+      {/* so mostra o link SE existir um repo */}
       {projeto.links.repo && (
         <a
           href={projeto.links.repo}
@@ -36,7 +47,7 @@ export function ProjetoCard({ projeto }: { projeto: Projeto }) {
           rel="noopener noreferrer"
           className="text-sm font-medium underline"
         >
-          Ver repositorio
+          Ver repositório
         </a>
       )}
     </article>
