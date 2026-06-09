@@ -1,40 +1,69 @@
 "use client";
-// ^ ESTA linha e a chave da interatividade.
-// Sem ela, este componente rodaria so no servidor e nao teria acesso
-// ao mouse. Com ela, vira "Client Component" e roda no navegador.
+// ^ ESTA linha e a chave da interatividade: vira "Client Component",
+// roda no navegador e tem acesso ao mouse.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef } from "react";
 
-// Efeito: um brilho de menta que segue o cursor pela tela.
+// Brilho de menta + lente que deforma levemente o fundo, seguindo o mouse
+// com um leve atraso (efeito "gravitacional").
 export function Spotlight() {
-  // useState guarda a posicao do mouse. Comeca como null (antes de montar).
-  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  // useRef = referencia direta a um elemento do DOM (sem re-render a cada frame).
+  const glowRef = useRef<HTMLDivElement>(null);
+  const lensRef = useRef<HTMLDivElement>(null);
 
-  // useEffect roda DEPOIS que o componente aparece no navegador.
   useEffect(() => {
-    // posicao inicial: meio da tela
-    setPos({ x: window.innerWidth / 2, y: window.innerHeight / 3 });
+    // 'alvo' = onde o mouse esta; 'atual' = onde o efeito esta agora.
+    const target = { x: window.innerWidth / 2, y: window.innerHeight / 3 };
+    const atual = { ...target };
 
-    // toda vez que o mouse se move, atualizamos a posicao
-    const handle = (e: PointerEvent) => setPos({ x: e.clientX, y: e.clientY });
-    window.addEventListener("pointermove", handle);
+    const onMove = (e: PointerEvent) => {
+      target.x = e.clientX;
+      target.y = e.clientY;
+    };
+    window.addEventListener("pointermove", onMove);
 
-    // limpeza: remove o listener quando o componente sai (boa pratica)
-    return () => window.removeEventListener("pointermove", handle);
+    let raf = 0;
+    const tick = () => {
+      // LERP: a cada quadro, anda 12% da distancia ate o alvo.
+      // Isso cria o "arrasto" suave (o efeito persegue o mouse com atraso).
+      atual.x += (target.x - atual.x) * 0.12;
+      atual.y += (target.y - atual.y) * 0.12;
+
+      if (glowRef.current) {
+        glowRef.current.style.background = `radial-gradient(260px circle at ${atual.x}px ${atual.y}px, rgba(94, 234, 212, 0.10), transparent 70%)`;
+      }
+      if (lensRef.current) {
+        // centraliza a lente (160px) no ponto atual
+        lensRef.current.style.transform = `translate(${atual.x - 80}px, ${atual.y - 80}px)`;
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("pointermove", onMove);
+    };
   }, []);
 
   return (
-    <div
-      aria-hidden
-      // fixed inset-0 = cobre a tela toda; -z-10 = fica ATRAS do conteudo;
-      // pointer-events-none = nao atrapalha cliques.
-      className="pointer-events-none fixed inset-0 -z-10"
-      // o brilho e um gradiente radial centrado na posicao do mouse
-      style={{
-        background: pos
-          ? `radial-gradient(600px circle at ${pos.x}px ${pos.y}px, rgba(94, 234, 212, 0.12), transparent 70%)`
-          : undefined,
-      }}
-    />
+    <>
+      {/* Brilho (atras do conteudo) */}
+      <div ref={glowRef} aria-hidden className="pointer-events-none fixed inset-0 -z-10" />
+
+      {/* Lente: deforma levemente o que esta atras dela (efeito de distorcao) */}
+      <div
+        ref={lensRef}
+        aria-hidden
+        className="pointer-events-none fixed left-0 top-0 z-50 h-40 w-40 rounded-full"
+        style={{
+          backdropFilter: "blur(1.5px) brightness(1.08)",
+          WebkitBackdropFilter: "blur(1.5px) brightness(1.08)",
+          // mascara: a deformacao some suavemente nas bordas do circulo
+          maskImage: "radial-gradient(circle, black 30%, transparent 70%)",
+          WebkitMaskImage: "radial-gradient(circle, black 30%, transparent 70%)",
+        }}
+      />
+    </>
   );
 }
