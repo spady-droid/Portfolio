@@ -1,10 +1,15 @@
 import Image from "next/image";
+import Link from "next/link";
 import type { Projeto } from "@/data/projetos";
 
 // Componente reutilizavel: recebe um 'projeto' (prop) e desenha o card.
+// O card inteiro e um Link para a pagina de case do projeto.
 export function ProjetoCard({ projeto }: { projeto: Projeto }) {
   return (
-    <article className="flex flex-col gap-3 rounded-xl border border-zinc-300 p-5 text-left dark:border-zinc-700">
+    <Link
+      href={`/projetos/${projeto.slug}`}
+      className="flex flex-col gap-3 rounded-xl border border-zinc-300 p-5 text-left transition-colors hover:border-zinc-400 dark:border-zinc-700 dark:hover:border-zinc-500"
+    >
       {/* so mostra a imagem SE o projeto tiver uma (renderizacao condicional) */}
       {projeto.imagem && (
         <div className="relative aspect-video w-full overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800">
@@ -27,7 +32,6 @@ export function ProjetoCard({ projeto }: { projeto: Projeto }) {
         {projeto.resumo}
       </p>
 
-      {/* lista de tecnologias: um .map() dentro do componente */}
       <ul className="flex flex-wrap gap-2">
         {projeto.tecnologias.map((tec) => (
           <li
@@ -39,17 +43,7 @@ export function ProjetoCard({ projeto }: { projeto: Projeto }) {
         ))}
       </ul>
 
-      {/* so mostra o link SE existir um repo */}
-      {projeto.links.repo && (
-        <a
-          href={projeto.links.repo}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-sm font-medium underline"
-        >
-          Ver repositório
-        </a>
-      )}
-    </article>
+      <span className="mt-1 text-sm font-medium">Ver detalhes →</span>
+    </Link>
   );
 }

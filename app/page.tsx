@@ -60,7 +60,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* CONTATO  — troque email/linkedin pelos seus */}
+      {/* CONTATO */}
       <section className="flex flex-col items-center gap-4 pb-16">
         <h2 className="text-sm font-bold uppercase tracking-widest text-zinc-500">
           Contato
@@ -74,11 +74,11 @@ export default function Home() {
           >
             GitHub
           </a>
-          <a href="mailto:seu-email@exemplo.com" className="underline">
+          <a href="mailto:educoelho2002@outlook.com" className="underline">
             Email
           </a>
           <a
-            href="https://linkedin.com/in/seu-usuario"
+            href="https://www.linkedin.com/in/eduardo-coelho-desenvolvedor"
             target="_blank"
             rel="noopener noreferrer"
             className="underline"
