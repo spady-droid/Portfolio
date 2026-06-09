@@ -59,7 +59,13 @@ export function ColapsoProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Envolve TODO o conteudo do site; quando colapsando, espirala ate sumir.
+// Envolve TODO o conteudo do site; quando colapsando, ESPAGUETIFICA:
+// as "forcas de mare" esticam o site na direcao da queda (scaleY cresce)
+// e comprimem nas laterais (scaleX encolhe) — vira um fio e e engolido.
+// Na volta, o fio e cuspido e o site se reforma.
+//
+// Conceito: KEYFRAMES — arrays de valores percorridos em etapas;
+// 'times' diz em que fracao da duracao cada etapa acontece.
 export function ColapsoConteudo({ children }: { children: React.ReactNode }) {
   const { colapsando, origem } = useColapso();
 
@@ -72,13 +78,27 @@ export function ColapsoConteudo({ children }: { children: React.ReactNode }) {
       }}
       animate={
         colapsando
-          ? { scale: 0.001, rotate: 200, opacity: 0 } // encolhe girando
-          : { scale: 1, rotate: 0, opacity: 1 }
+          ? {
+              // estica devagar -> vira fio -> e engolido
+              scaleY: [1, 1.7, 7, 0.001],
+              scaleX: [1, 0.55, 0.03, 0.001],
+              rotate: [0, 1, 8, 20],
+              opacity: [1, 1, 0.85, 0],
+              filter: ["blur(0px)", "blur(0px)", "blur(2px)", "blur(8px)"],
+            }
+          : {
+              // cuspido como fio -> se reforma
+              scaleY: [0.001, 6, 1.3, 1],
+              scaleX: [0.001, 0.04, 0.7, 1],
+              rotate: [20, 6, -1, 0],
+              opacity: [0, 0.85, 1, 1],
+              filter: ["blur(8px)", "blur(3px)", "blur(0px)", "blur(0px)"],
+            }
       }
       transition={
         colapsando
-          ? { duration: 1.5, ease: [0.6, -0.05, 0.9, 0.4] } // acelera pra dentro
-          : { duration: 1.3, ease: [0.16, 1, 0.3, 1] } // volta desacelerando
+          ? { duration: 1.8, times: [0, 0.45, 0.82, 1], ease: "easeIn" }
+          : { duration: 1.6, times: [0, 0.3, 0.75, 1], ease: "easeOut" }
       }
       className="flex flex-1 flex-col"
     >
