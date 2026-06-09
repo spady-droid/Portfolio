@@ -6,25 +6,30 @@ export default function Home() {
   const nome = "Eduardo Coelho da Silva";
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col items-center gap-12 p-8 text-center">
+    <main className="mx-auto flex min-h-screen max-w-3xl flex-col items-center gap-16 p-8 text-center">
       {/* HERO */}
-      <div className="flex flex-col gap-4 pt-16">
-        <p className="text-sm uppercase tracking-widest text-zinc-500">
+      <div className="animate-fade-up flex flex-col items-center gap-4 pt-20">
+        <p className="font-mono text-xs uppercase tracking-[0.3em] text-accent">
           Portfolio
         </p>
-        <h1 className="text-4xl font-bold sm:text-6xl">{nome}</h1>
-        <p className="max-w-md text-lg text-zinc-600 dark:text-zinc-400">
+        <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-6xl">
+          {nome}
+        </h1>
+        <p className="max-w-md text-lg text-muted">
           Desenvolvedor Full Stack — transformo problemas reais de negócio em
           software que roda em produção.
         </p>
       </div>
 
       {/* SOBRE */}
-      <section className="flex max-w-xl flex-col items-center gap-4">
-        <h2 className="text-sm font-bold uppercase tracking-widest text-zinc-500">
+      <section
+        className="animate-fade-up flex max-w-xl flex-col items-center gap-4"
+        style={{ animationDelay: "0.1s" }}
+      >
+        <h2 className="font-mono text-xs uppercase tracking-[0.3em] text-accent">
           Sobre
         </h2>
-        <p className="text-zinc-600 dark:text-zinc-400">
+        <p className="text-muted">
           Desenvolvedor Full Stack, formando em Ciência da Computação. Construo
           sistemas completos, do back-end à interface — web e mobile. Já coloquei
           software em produção resolvendo problemas reais de negócio.
@@ -32,15 +37,18 @@ export default function Home() {
       </section>
 
       {/* SKILLS */}
-      <section className="flex flex-col items-center gap-4">
-        <h2 className="text-sm font-bold uppercase tracking-widest text-zinc-500">
+      <section
+        className="animate-fade-up flex flex-col items-center gap-4"
+        style={{ animationDelay: "0.2s" }}
+      >
+        <h2 className="font-mono text-xs uppercase tracking-[0.3em] text-accent">
           Skills
         </h2>
         <ul className="flex flex-wrap justify-center gap-3">
           {skills.map((skill) => (
             <li
               key={skill.nome}
-              className="rounded-full border border-zinc-300 px-4 py-2 text-sm dark:border-zinc-700"
+              className="rounded-full border border-border bg-surface px-4 py-2 text-sm text-foreground transition-colors hover:border-accent hover:text-accent"
             >
               {skill.nome}
             </li>
@@ -49,8 +57,11 @@ export default function Home() {
       </section>
 
       {/* PROJETOS */}
-      <section className="flex w-full flex-col items-center gap-4">
-        <h2 className="text-sm font-bold uppercase tracking-widest text-zinc-500">
+      <section
+        className="animate-fade-up flex w-full flex-col items-center gap-6"
+        style={{ animationDelay: "0.3s" }}
+      >
+        <h2 className="font-mono text-xs uppercase tracking-[0.3em] text-accent">
           Projetos
         </h2>
         <div className="grid w-full gap-4 sm:grid-cols-2">
@@ -61,8 +72,11 @@ export default function Home() {
       </section>
 
       {/* CONTATO */}
-      <section className="flex flex-col items-center gap-4 pb-16">
-        <h2 className="text-sm font-bold uppercase tracking-widest text-zinc-500">
+      <section
+        className="animate-fade-up flex flex-col items-center gap-4 pb-20"
+        style={{ animationDelay: "0.4s" }}
+      >
+        <h2 className="font-mono text-xs uppercase tracking-[0.3em] text-accent">
           Contato
         </h2>
         <div className="flex flex-wrap justify-center gap-4 text-sm font-medium">
@@ -70,18 +84,21 @@ export default function Home() {
             href="https://github.com/spady-droid"
             target="_blank"
             rel="noopener noreferrer"
-            className="underline"
+            className="text-foreground transition-colors hover:text-accent"
           >
             GitHub
           </a>
-          <a href="mailto:educoelho2002@outlook.com" className="underline">
+          <a
+            href="mailto:educoelho2002@outlook.com"
+            className="text-foreground transition-colors hover:text-accent"
+          >
             Email
           </a>
           <a
             href="https://www.linkedin.com/in/eduardo-coelho-desenvolvedor"
             target="_blank"
             rel="noopener noreferrer"
-            className="underline"
+            className="text-foreground transition-colors hover:text-accent"
           >
             LinkedIn
           </a>

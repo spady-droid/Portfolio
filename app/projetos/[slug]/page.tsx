@@ -23,22 +23,25 @@ export default async function ProjetoPage({
   const caso = projeto.caso;
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-10 p-8">
-      <Link href="/" className="text-sm text-zinc-500 underline">
+    <main className="animate-fade-up mx-auto flex min-h-screen max-w-3xl flex-col gap-10 p-8">
+      <Link
+        href="/"
+        className="font-mono text-xs uppercase tracking-widest text-muted transition-colors hover:text-accent"
+      >
         ← Voltar
       </Link>
 
       <header className="flex flex-col gap-4">
-        <span className="text-xs text-zinc-500">{projeto.ano}</span>
-        <h1 className="text-3xl font-bold sm:text-4xl">{projeto.titulo}</h1>
-        <p className="text-lg text-zinc-600 dark:text-zinc-400">
-          {projeto.resumo}
-        </p>
+        <span className="font-mono text-xs text-accent">{projeto.ano}</span>
+        <h1 className="text-3xl font-bold text-foreground sm:text-4xl">
+          {projeto.titulo}
+        </h1>
+        <p className="text-lg text-muted">{projeto.resumo}</p>
         <ul className="flex flex-wrap gap-2">
           {projeto.tecnologias.map((tec) => (
             <li
               key={tec}
-              className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs dark:bg-zinc-800"
+              className="rounded-full border border-border px-2.5 py-1 text-xs text-muted"
             >
               {tec}
             </li>
@@ -49,7 +52,7 @@ export default async function ProjetoPage({
             href={projeto.links.repo}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-sm font-medium underline"
+            className="text-sm font-medium text-accent underline"
           >
             Ver repositório
           </a>
@@ -60,24 +63,24 @@ export default async function ProjetoPage({
         <>
           {caso.problema && (
             <section className="flex flex-col gap-2">
-              <h2 className="text-sm font-bold uppercase tracking-widest text-zinc-500">
+              <h2 className="font-mono text-xs uppercase tracking-widest text-accent">
                 O problema
               </h2>
-              <p className="text-zinc-600 dark:text-zinc-400">{caso.problema}</p>
+              <p className="text-muted">{caso.problema}</p>
             </section>
           )}
 
           {caso.solucao && (
             <section className="flex flex-col gap-2">
-              <h2 className="text-sm font-bold uppercase tracking-widest text-zinc-500">
+              <h2 className="font-mono text-xs uppercase tracking-widest text-accent">
                 A solução
               </h2>
-              <p className="text-zinc-600 dark:text-zinc-400">{caso.solucao}</p>
+              <p className="text-muted">{caso.solucao}</p>
             </section>
           )}
 
           <section className="flex flex-col gap-6">
-            <h2 className="text-sm font-bold uppercase tracking-widest text-zinc-500">
+            <h2 className="font-mono text-xs uppercase tracking-widest text-accent">
               Telas
             </h2>
             <div
@@ -90,7 +93,7 @@ export default async function ProjetoPage({
               {caso.galeria.map((img) => (
                 <figure key={img.src} className="flex flex-col gap-3">
                   <Mockup src={img.src} alt={img.legenda} formato={caso.formato} />
-                  <figcaption className="text-center text-sm text-zinc-500">
+                  <figcaption className="text-center text-sm text-muted">
                     {img.legenda}
                   </figcaption>
                 </figure>

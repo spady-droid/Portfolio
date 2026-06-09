@@ -1,26 +1,52 @@
 @import "tailwindcss";
 
+/* ===== Tokens de design (navy + menta, inspirado no PDF do CONTEST) ===== */
 :root {
-  --background: #000000;
-  --foreground: #ffffff;
+  --background: #0a0f1f; /* navy quase preto */
+  --surface: #121a30; /* cards / superficies */
+  --foreground: #e7ecf5; /* texto principal */
+  --muted: #8b95ac; /* texto secundario */
+  --accent: #5eead4; /* menta (destaque) */
+  --border: rgba(255, 255, 255, 0.1); /* borda sutil */
 }
 
+/* Liga os tokens ao Tailwind: gera bg-surface, text-accent, border-border, etc. */
 @theme inline {
   --color-background: var(--background);
+  --color-surface: var(--surface);
   --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-border: var(--border);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #000000;
-    --foreground: #ebe5e5;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, sans-serif;
+}
+
+/* ===== Animacao de entrada: aparece subindo e com fade ===== */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.6s ease-out both;
+}
+
+/* Acessibilidade: quem pediu menos movimento no SO nao ve animacao */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up {
+    animation: none;
+  }
 }

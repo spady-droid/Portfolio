@@ -14,7 +14,7 @@ export function Mockup({
 }) {
   if (formato === "mobile") {
     return (
-      <div className="mx-auto w-full max-w-[240px] rounded-[2rem] border-[6px] border-zinc-800 bg-zinc-800 shadow-xl dark:border-zinc-700 dark:bg-zinc-700">
+      <div className="mx-auto w-full max-w-[240px] rounded-[2rem] border-[6px] border-surface bg-surface shadow-xl">
         <div className="relative aspect-[9/20] w-full overflow-hidden rounded-[1.5rem]">
           <Image src={src} alt={alt} fill className="object-cover" sizes="240px" />
         </div>
@@ -23,8 +23,8 @@ export function Mockup({
   }
 
   return (
-    <div className="w-full overflow-hidden rounded-xl border border-zinc-300 shadow-lg dark:border-zinc-700">
-      <div className="flex items-center gap-1.5 bg-zinc-100 px-3 py-2 dark:bg-zinc-800">
+    <div className="w-full overflow-hidden rounded-xl border border-border shadow-lg">
+      <div className="flex items-center gap-1.5 bg-surface px-3 py-2">
         <span className="h-2.5 w-2.5 rounded-full bg-red-400" />
         <span className="h-2.5 w-2.5 rounded-full bg-yellow-400" />
         <span className="h-2.5 w-2.5 rounded-full bg-green-400" />
