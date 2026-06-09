@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Spotlight } from "@/components/Spotlight";
 import { BlackHole } from "@/components/BlackHole";
+import { ColapsoProvider, ColapsoConteudo } from "@/components/Colapso";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,9 +32,12 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
-        <BlackHole />
-        <Spotlight />
-        {children}
+        {/* Provider: estado compartilhado do colapso (botao + conteudo + buraco) */}
+        <ColapsoProvider>
+          <BlackHole />
+          <Spotlight />
+          <ColapsoConteudo>{children}</ColapsoConteudo>
+        </ColapsoProvider>
       </body>
     </html>
   );

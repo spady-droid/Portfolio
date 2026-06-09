@@ -1,6 +1,8 @@
 import { skills } from "@/data/skills";
 import { projetos } from "@/data/projetos";
 import { ProjetoCard } from "@/components/ProjetoCard";
+import { Tilt } from "@/components/Tilt";
+import { BotaoColapso } from "@/components/Colapso";
 
 export default function Home() {
   const nome = "Eduardo Coelho da Silva";
@@ -19,6 +21,7 @@ export default function Home() {
           Desenvolvedor Full Stack — transformo problemas reais de negócio em
           software que roda em produção.
         </p>
+        <BotaoColapso />
       </div>
 
       {/* SOBRE */}
@@ -66,7 +69,9 @@ export default function Home() {
         </h2>
         <div className="grid w-full gap-4 sm:grid-cols-2">
           {projetos.map((projeto) => (
-            <ProjetoCard key={projeto.slug} projeto={projeto} />
+            <Tilt key={projeto.slug}>
+              <ProjetoCard projeto={projeto} />
+            </Tilt>
           ))}
         </div>
       </section>

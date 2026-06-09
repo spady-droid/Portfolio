@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useColapso } from "@/components/Colapso";
 
 // Vertex shader: so posiciona um retangulo que cobre a tela inteira.
 const VERT = `
@@ -11,11 +12,13 @@ void main() {
 `;
 
 // Fragment shader: calcula a COR de cada pixel. Aqui mora o buraco negro.
+// uCollapse (0 a 1) e a "forca extra" durante o colapso do site.
 const FRAG = `
 precision highp float;
 uniform float uTime;
 uniform vec2 uResolution;
 uniform vec2 uMouse;
+uniform float uCollapse;
 
 // "ruido" pseudo-aleatorio para distribuir estrelas
 float hash(vec2 p){
@@ -42,15 +45,17 @@ void main(){
 
   vec2 p = uv - 0.5;  p.x *= aspect;              // centrado
   vec2 m = uMouse - 0.5;  m.x *= aspect;
-  vec2 center = m * 0.35;                          // o buraco deriva pro mouse
+  // durante o colapso o buraco vai pro CENTRO da tela (suga tudo pra la)
+  vec2 center = m * 0.35 * (1.0 - uCollapse);
 
   vec2 d = p - center;
   float r = length(d);
 
-  // LENTE GRAVITACIONAL: quanto mais perto do centro, mais a luz encurva
-  float lens = min(0.05 / (r * r + 0.02), 3.0);
+  // LENTE GRAVITACIONAL: forca cresce com o colapso
+  float forca = 0.05 + 0.22 * uCollapse;
+  float lens = min(forca / (r * r + 0.02), 3.0 + 3.0 * uCollapse);
   vec2 dir = d / (r + 1e-4);
-  float ang = lens;                               // angulo do redemoinho
+  float ang = lens * (1.0 + 1.2 * uCollapse);     // redemoinho mais violento
   float ca = cos(ang), sa = sin(ang);
   vec2 warped = center + mat2(ca, -sa, sa, ca) * d - dir * lens * 0.12;
 
@@ -61,18 +66,19 @@ void main(){
   vec3 col = vec3(0.03, 0.05, 0.10);              // navy profundo
   col += field * vec3(0.7, 0.85, 1.0);
 
-  // disco de acrescao (anel de menta girando)
-  float ringR = 0.17;
+  // disco de acrescao (anel de menta girando) — cresce e brilha no colapso
+  float ringR = 0.17 + 0.07 * uCollapse;
   float ring = smoothstep(0.045, 0.0, abs(r - ringR));
   float a = atan(d.y, d.x);
-  ring *= 0.5 + 0.5 * sin(a * 2.0 - uTime * 1.2);
-  col += ring * vec3(0.37, 0.92, 0.83) * 1.4;
+  ring *= 0.5 + 0.5 * sin(a * 2.0 - uTime * (1.2 + 3.0 * uCollapse));
+  col += ring * vec3(0.37, 0.92, 0.83) * (1.4 + 1.6 * uCollapse);
 
   // brilho externo suave
-  col += vec3(0.37, 0.92, 0.83) * 0.025 / (r + 0.04);
+  col += vec3(0.37, 0.92, 0.83) * (0.025 + 0.05 * uCollapse) / (r + 0.04);
 
-  // horizonte de eventos: nucleo preto
-  float core = smoothstep(0.145, 0.135, r);
+  // horizonte de eventos: nucleo preto (engorda durante o colapso)
+  float nucleo = 0.14 + 0.05 * uCollapse;
+  float core = smoothstep(nucleo + 0.01, nucleo - 0.01, r);
   col *= (1.0 - core);
 
   gl_FragColor = vec4(col, 1.0);
@@ -81,6 +87,13 @@ void main(){
 
 export function BlackHole() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const { colapsando } = useColapso();
+  // ref espelha o estado pro loop de render (que roda fora do React)
+  const alvoColapso = useRef(0);
+
+  useEffect(() => {
+    alvoColapso.current = colapsando ? 1 : 0;
+  }, [colapsando]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -119,9 +132,11 @@ export function BlackHole() {
     const uTime = gl.getUniformLocation(prog, "uTime");
     const uRes = gl.getUniformLocation(prog, "uResolution");
     const uMouse = gl.getUniformLocation(prog, "uMouse");
+    const uCollapse = gl.getUniformLocation(prog, "uCollapse");
 
     const mouse = { x: 0.5, y: 0.5 };
     const cur = { x: 0.5, y: 0.5 };
+    let collapse = 0; // valor suavizado de 0..1
     const onMove = (e: PointerEvent) => {
       mouse.x = e.clientX / window.innerWidth;
       mouse.y = 1 - e.clientY / window.innerHeight; // y invertido (WebGL)
@@ -146,9 +161,11 @@ export function BlackHole() {
       const t = reduced ? 0 : (performance.now() - start) / 1000;
       cur.x += (mouse.x - cur.x) * 0.05; // arrasto suave
       cur.y += (mouse.y - cur.y) * 0.05;
+      collapse += (alvoColapso.current - collapse) * 0.045; // rampa lenta
       gl.uniform1f(uTime, t);
       gl.uniform2f(uRes, canvas.width, canvas.height);
       gl.uniform2f(uMouse, cur.x, cur.y);
+      gl.uniform1f(uCollapse, collapse);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
       raf = requestAnimationFrame(render);
     };
