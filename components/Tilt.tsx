@@ -6,7 +6,13 @@ import { motion, useMotionValue, useSpring } from "framer-motion";
 // Tilt 3D: o card inclina seguindo o mouse, como se fosse uma placa
 // flutuando. Conceitos: motion values (animam SEM re-renderizar o
 // componente a cada pixel) + spring (mola: movimento com peso natural).
-export function Tilt({ children }: { children: React.ReactNode }) {
+export function Tilt({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   const ref = useRef<HTMLDivElement>(null);
 
   // motion values: "caixinhas" de valor que o Framer anima direto no DOM
@@ -38,7 +44,7 @@ export function Tilt({ children }: { children: React.ReactNode }) {
       onPointerLeave={reset}
       // transformPerspective da a profundidade (sem ela nao parece 3D)
       style={{ rotateX: srx, rotateY: sry, transformPerspective: 700 }}
-      className="h-full"
+      className={className}
     >
       {children}
     </motion.div>

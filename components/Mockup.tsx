@@ -14,7 +14,7 @@ export function Mockup({
 }) {
   if (formato === "mobile") {
     return (
-      <div className="mx-auto w-full max-w-[240px] rounded-[2rem] border-[6px] border-surface bg-surface shadow-xl">
+      <div className="mx-auto w-full max-w-[240px] rounded-[2rem] border-[6px] border-surface bg-surface shadow-[0_0_45px_-10px_rgba(94,234,212,0.35)] transition-shadow duration-300 hover:shadow-[0_0_65px_-8px_rgba(94,234,212,0.6)]">
         <div className="relative aspect-[9/20] w-full overflow-hidden rounded-[1.5rem]">
           <Image src={src} alt={alt} fill className="object-cover" sizes="240px" />
         </div>
@@ -23,7 +23,7 @@ export function Mockup({
   }
 
   return (
-    <div className="w-full overflow-hidden rounded-xl border border-border shadow-lg">
+    <div className="w-full overflow-hidden rounded-xl border border-border shadow-[0_0_45px_-10px_rgba(94,234,212,0.3)] transition-shadow duration-300 hover:shadow-[0_0_65px_-8px_rgba(94,234,212,0.55)]">
       <div className="flex items-center gap-1.5 bg-surface px-3 py-2">
         <span className="h-2.5 w-2.5 rounded-full bg-red-400" />
         <span className="h-2.5 w-2.5 rounded-full bg-yellow-400" />

@@ -79,18 +79,18 @@ export function ColapsoConteudo({ children }: { children: React.ReactNode }) {
       animate={
         colapsando
           ? {
-              // estica devagar -> vira fio -> e engolido
+              // estica + ESPIRALA: o fio gira cada vez mais rapido ao cair
               scaleY: [1, 1.7, 7, 0.001],
               scaleX: [1, 0.55, 0.03, 0.001],
-              rotate: [0, 1, 8, 20],
+              rotate: [0, 25, 160, 420],
               opacity: [1, 1, 0.85, 0],
               filter: ["blur(0px)", "blur(0px)", "blur(2px)", "blur(8px)"],
             }
           : {
-              // cuspido como fio -> se reforma
+              // cuspido girando ao contrario -> se reforma
               scaleY: [0.001, 6, 1.3, 1],
               scaleX: [0.001, 0.04, 0.7, 1],
-              rotate: [20, 6, -1, 0],
+              rotate: [420, 160, 15, 0],
               opacity: [0, 0.85, 1, 1],
               filter: ["blur(8px)", "blur(3px)", "blur(0px)", "blur(0px)"],
             }

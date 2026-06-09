@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { projetos } from "@/data/projetos";
 import { Mockup } from "@/components/Mockup";
+import { Tilt } from "@/components/Tilt";
 
 // Diz ao Next QUAIS paginas gerar (uma por projeto). Roda no build.
 export function generateStaticParams() {
@@ -83,16 +84,20 @@ export default async function ProjetoPage({
             <h2 className="font-mono text-xs uppercase tracking-widest text-accent">
               Telas
             </h2>
-            <div
-              className={
-                caso.formato === "mobile"
-                  ? "grid gap-8 sm:grid-cols-3"
-                  : "flex flex-col gap-8"
-              }
-            >
+            {/* flex + justify-center: linha incompleta (impar) fica centralizada */}
+            <div className="flex flex-wrap justify-center gap-8">
               {caso.galeria.map((img) => (
-                <figure key={img.src} className="flex flex-col gap-3">
-                  <Mockup src={img.src} alt={img.legenda} formato={caso.formato} />
+                <figure
+                  key={img.src}
+                  className={
+                    caso.formato === "mobile"
+                      ? "flex w-full flex-col gap-3 sm:w-[calc(33.333%-1.34rem)]"
+                      : "flex w-full flex-col gap-3"
+                  }
+                >
+                  <Tilt>
+                    <Mockup src={img.src} alt={img.legenda} formato={caso.formato} />
+                  </Tilt>
                   <figcaption className="text-center text-sm text-muted">
                     {img.legenda}
                   </figcaption>

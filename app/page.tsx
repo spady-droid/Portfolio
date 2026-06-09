@@ -67,9 +67,13 @@ export default function Home() {
         <h2 className="font-mono text-xs uppercase tracking-[0.3em] text-accent">
           Projetos
         </h2>
-        <div className="grid w-full gap-4 sm:grid-cols-2">
+        {/* flex + justify-center: card sobrando (impar) fica centralizado */}
+        <div className="flex w-full flex-wrap justify-center gap-4">
           {projetos.map((projeto) => (
-            <Tilt key={projeto.slug}>
+            <Tilt
+              key={projeto.slug}
+              className="w-full sm:w-[calc(50%-0.5rem)]"
+            >
               <ProjetoCard projeto={projeto} />
             </Tilt>
           ))}
