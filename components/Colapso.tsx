@@ -59,13 +59,16 @@ export function ColapsoProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Envolve TODO o conteudo do site; quando colapsando, ESPAGUETIFICA:
-// as "forcas de mare" esticam o site na direcao da queda (scaleY cresce)
-// e comprimem nas laterais (scaleX encolhe) — vira um fio e e engolido.
-// Na volta, o fio e cuspido e o site se reforma.
+// Envolve TODO o conteudo do site; quando colapsando, o site CAI EM 3D
+// na direcao do buraco (translateZ negativo = profundidade), ESPIRALANDO
+// (rotate) e se ESPAGUETIFICANDO (scaleY estica / scaleX comprime).
+// Na volta, e cuspido do fundo girando ao contrario.
 //
-// Conceito: KEYFRAMES — arrays de valores percorridos em etapas;
-// 'times' diz em que fracao da duracao cada etapa acontece.
+// Conceitos:
+// - KEYFRAMES: arrays percorridos em etapas; 'times' marca quando.
+// - transformPerspective + z: 'z' negativo afasta o elemento do
+//   observador; a perspectiva converge pro transformOrigin — que esta
+//   no centro do buraco. Ou seja: cair "pra dentro" E "na direcao" dele.
 export function ColapsoConteudo({ children }: { children: React.ReactNode }) {
   const { colapsando, origem } = useColapso();
 
@@ -74,25 +77,28 @@ export function ColapsoConteudo({ children }: { children: React.ReactNode }) {
       initial={false}
       style={{
         transformOrigin: `${origem.x}px ${origem.y}px`,
+        transformPerspective: 900,
         pointerEvents: colapsando ? "none" : "auto",
       }}
       animate={
         colapsando
           ? {
-              // estica + ESPIRALA: o fio gira cada vez mais rapido ao cair
-              scaleY: [1, 1.7, 7, 0.001],
-              scaleX: [1, 0.55, 0.03, 0.001],
-              rotate: [0, 25, 160, 420],
-              opacity: [1, 1, 0.85, 0],
-              filter: ["blur(0px)", "blur(0px)", "blur(2px)", "blur(8px)"],
+              // mergulha no eixo Z + espirala + espaguetifica
+              z: [0, -180, -1400, -3800],
+              rotate: [0, 30, 170, 430],
+              scaleY: [1, 1.8, 6.5, 0.001],
+              scaleX: [1, 0.6, 0.05, 0.001],
+              opacity: [1, 1, 0.8, 0],
+              filter: ["blur(0px)", "blur(0px)", "blur(2px)", "blur(9px)"],
             }
           : {
-              // cuspido girando ao contrario -> se reforma
-              scaleY: [0.001, 6, 1.3, 1],
-              scaleX: [0.001, 0.04, 0.7, 1],
-              rotate: [420, 160, 15, 0],
-              opacity: [0, 0.85, 1, 1],
-              filter: ["blur(8px)", "blur(3px)", "blur(0px)", "blur(0px)"],
+              // emerge do fundo desenrolando
+              z: [-3800, -1200, -120, 0],
+              rotate: [430, 170, 18, 0],
+              scaleY: [0.001, 5.5, 1.25, 1],
+              scaleX: [0.001, 0.06, 0.75, 1],
+              opacity: [0, 0.8, 1, 1],
+              filter: ["blur(9px)", "blur(3px)", "blur(0px)", "blur(0px)"],
             }
       }
       transition={
