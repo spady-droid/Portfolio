@@ -1,30 +1,28 @@
 "use client";
 
-// ============================================================
-// O "colapso": botao dispara -> o site e DISTORCIDO num redemoinho
-// (pixels entortam, rotacao diferencial), cai em 3D pra dentro do
-// buraco negro espaguetificando -> so buraco + estrelas -> tudo volta.
-//
-// Conceitos:
-// - React Context: estado compartilhado (botao + conteudo + shader).
-// - transform (rigido): Z + espiral + espaguete do bloco inteiro.
-// - feDisplacementMap (SVG): distorcao POR PIXEL — o mapa em espiral
-//   diz de onde cada pixel deve ser amostrado; intensidade animada.
-// ============================================================
-
-import { createContext, useContext, useEffect, useRef, useState } from "react";
-import { motion } from "framer-motion";
+import {
+  createContext,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { toCanvas } from "html-to-image";
 
 type Fase = "parado" | "caindo" | "voltando";
 
 interface ColapsoCtx {
   fase: Fase;
-  colapsando: boolean; // conveniencia: fase === "caindo"
+  colapsando: boolean;
   origem: { x: number; y: number };
   disparar: () => void;
 }
 
 const Ctx = createContext<ColapsoCtx | null>(null);
+const QUEDA_MS = 3600;
+const VOLTA_MS = 1500;
 
 export function useColapso() {
   const ctx = useContext(Ctx);
@@ -32,213 +30,258 @@ export function useColapso() {
   return ctx;
 }
 
-export function ColapsoProvider({ children }: { children: React.ReactNode }) {
+export function ColapsoProvider({ children }: { children: ReactNode }) {
   const [fase, setFase] = useState<Fase>("parado");
   const [origem, setOrigem] = useState({ x: 0, y: 0 });
+  const timersRef = useRef<number[]>([]);
 
-  const disparar = () => {
+  const limpar = useCallback(() => {
+    timersRef.current.forEach((t) => window.clearTimeout(t));
+    timersRef.current = [];
+  }, []);
+
+  const disparar = useCallback(() => {
     if (fase !== "parado") return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-
-    setOrigem({
-      x: window.innerWidth / 2,
-      y: window.scrollY + window.innerHeight / 2,
-    });
+    limpar();
+    setOrigem({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
     setFase("caindo");
-    setTimeout(() => setFase("voltando"), 3200);
-    setTimeout(() => setFase("parado"), 4800);
-  };
+    timersRef.current = [
+      window.setTimeout(() => setFase("voltando"), QUEDA_MS),
+      window.setTimeout(() => setFase("parado"), QUEDA_MS + VOLTA_MS),
+    ];
+  }, [fase, limpar]);
+
+  useEffect(() => limpar, [limpar]);
 
   return (
-    <Ctx.Provider
-      value={{ fase, colapsando: fase === "caindo", origem, disparar }}
-    >
+    <Ctx.Provider value={{ fase, colapsando: fase === "caindo", origem, disparar }}>
       {children}
     </Ctx.Provider>
   );
 }
 
-// ------------------------------------------------------------
-// Mapa de redemoinho: imagem onde os canais R/G codificam, por
-// pixel, o deslocamento (dx, dy) de onde amostrar a imagem.
-// Espiral: rotacao DIFERENCIAL — angulo maximo no centro, zero na borda.
-// ------------------------------------------------------------
-const FORCA = 600; // 'scale' maximo do feDisplacementMap (px)
+// ---- shaders do warp ----
+const VERT = `attribute vec2 position; void main(){ gl_Position = vec4(position,0.0,1.0); }`;
 
-function gerarMapaRedemoinho(
-  bandaW: number,
-  bandaY: number,
-  bandaH: number,
-  cx: number,
-  cy: number,
-  raio: number,
-): string {
-  const W = 256;
-  const H = 256;
-  const canvas = document.createElement("canvas");
-  canvas.width = W;
-  canvas.height = H;
-  const ctx = canvas.getContext("2d")!;
-  const img = ctx.createImageData(W, H);
+const FRAG = `
+precision highp float;
+uniform sampler2D uTex;
+uniform vec2 uRes;       // tamanho do buffer (px reais)
+uniform vec4 uRect;      // retangulo do conteudo em CSS px: x,y,w,h
+uniform vec2 uCenter;    // centro do buraco em CSS px
+uniform float uProgress; // 0..1
+uniform float uDpr;
 
-  for (let py = 0; py < H; py++) {
-    for (let px = 0; px < W; px++) {
-      // posicao deste texel em coordenadas da pagina (dentro da banda)
-      const x = ((px + 0.5) / W) * bandaW;
-      const y = bandaY + ((py + 0.5) / H) * bandaH;
-      const dx = x - cx;
-      const dy = y - cy;
-      const r = Math.hypot(dx, dy);
+void main(){
+  // pixel atual em CSS px, origem no topo-esquerda
+  vec2 sp = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y) / uDpr;
+  vec2 d = sp - uCenter;
+  float r = length(d);
+  float ang = atan(d.y, d.x);
+  float p = uProgress;
 
-      let ox = 0;
-      let oy = 0;
-      if (r < raio && r > 0.001) {
-        const t = 1 - r / raio; // 1 no centro -> 0 na borda
-        const ang = t * t * 3.0; // rotacao diferencial (ate ~172 graus)
-        const ca = Math.cos(ang);
-        const sa = Math.sin(ang);
-        // amostrar da posicao girada => offset de deslocamento
-        ox = cx + dx * ca - dy * sa - x;
-        oy = cy + dx * sa + dy * ca - y;
-        const m = FORCA / 2; // clamp pro alcance representavel
-        ox = Math.max(-m, Math.min(m, ox));
-        oy = Math.max(-m, Math.min(m, oy));
-      }
+  // ESPIRAL: rotacao diferencial (mais forte perto do centro), cresce com p
+  float swirl = p * (900.0 + 1700.0 * p) / (r + 55.0);
+  // PINCH: amostra de um raio MAIOR -> conteudo escorre pra dentro
+  float pull = p * 360.0 * (1.0 - smoothstep(0.0, 760.0, r));
+  float a2 = ang + swirl;
+  float rs = r + pull;
+  vec2 w = uCenter + vec2(cos(a2), sin(a2)) * rs;
 
-      const i = (py * W + px) * 4;
-      img.data[i] = Math.round((ox / FORCA) * 255 + 127.5); // R = dx
-      img.data[i + 1] = Math.round((oy / FORCA) * 255 + 127.5); // G = dy
-      img.data[i + 2] = 127;
-      img.data[i + 3] = 255;
-    }
-  }
-  ctx.putImageData(img, 0, 0);
-  return canvas.toDataURL("image/png");
+  // amostra a textura do conteudo (topo do conteudo casa com topo da textura)
+  vec2 uv = (w - uRect.xy) / uRect.zw;
+  vec4 c = vec4(0.0);
+  if (uv.x > 0.0 && uv.x < 1.0 && uv.y > 0.0 && uv.y < 1.0) c = texture2D(uTex, uv);
+
+  // redshift perto do centro
+  float red = smoothstep(240.0, 40.0, r) * p;
+  c.rgb = mix(c.rgb, c.rgb * vec3(1.55, 0.45, 0.32), red);
+
+  // comido pelo horizonte de eventos (some no nucleo)
+  c.a *= smoothstep(38.0, 115.0, r);
+
+  // saida premultiplicada (compositing correto sobre o buraco negro)
+  gl_FragColor = vec4(c.rgb * c.a, c.a);
+}
+`;
+
+interface WarpApi {
+  upload: (src: HTMLCanvasElement, rect: DOMRect) => void;
 }
 
-// Envolve TODO o conteudo do site.
-export function ColapsoConteudo({ children }: { children: React.ReactNode }) {
-  const { fase, colapsando, origem } = useColapso();
+// Envolve TODO o conteudo. No colapso: captura o conteudo numa textura e
+// um shader WebGL TORCE essa textura em espiral pra dentro do buraco negro
+// (deformacao real por pixel). O conteudo vivo fica escondido durante o efeito.
+export function ColapsoConteudo({ children }: { children: ReactNode }) {
+  const { fase, origem } = useColapso();
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const dispRef = useRef<SVGFEDisplacementMapElement>(null);
-  const feImgRef = useRef<SVGFEImageElement>(null);
-  // regiao do filtro: SO uma banda de ~2 viewports em volta do buraco
-  // (filtrar o documento inteiro re-rasteriza milhoes de pixels por
-  // frame e derruba o FPS — limitar a regiao e o que torna viavel)
-  const [banda, setBanda] = useState({ x: 0, y: 0, w: 1, h: 1 });
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const apiRef = useRef<WarpApi | null>(null);
 
-  // Quando comeca a cair: gera o mapa centrado no buraco e anima a
-  // intensidade (scale) do feDisplacementMap com um loop rAF.
+  // estado de animacao (fora do React, lido pelo loop)
+  const progress = useRef(0);
+  const anim = useRef({ from: 0, to: 0, start: 0, dur: 1, active: false });
+  const ready = useRef(false); // textura capturada?
+  const [overlay, setOverlay] = useState(false); // canvas visivel / conteudo escondido
+
+  // ---- setup WebGL (uma vez) ----
   useEffect(() => {
-    if (fase === "parado") return;
-    const el = wrapperRef.current;
-    if (!el) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const gl = canvas.getContext("webgl", { premultipliedAlpha: true, alpha: true });
+    if (!gl) return;
 
-    const docW = el.scrollWidth;
-    const vh = window.innerHeight;
-    const bandaY = Math.max(0, origem.y - vh);
-    const bandaH = vh * 2;
-    setBanda({ x: 0, y: bandaY, w: docW, h: bandaH });
-
-    if (fase === "caindo" && feImgRef.current) {
-      const raio = Math.max(window.innerWidth, vh) * 0.9;
-      const url = gerarMapaRedemoinho(docW, bandaY, bandaH, origem.x, origem.y, raio);
-      feImgRef.current.setAttribute("href", url);
-    }
-
-    // rampa da forca do redemoinho: caindo 0->FORCA, voltando FORCA->0
-    const dur = 1500;
-    const t0 = performance.now();
-    let raf = 0;
-    const tick = () => {
-      const p = Math.min(1, (performance.now() - t0) / dur);
-      const eased = fase === "caindo" ? p * p * p : (1 - p) * (1 - p);
-      dispRef.current?.setAttribute("scale", String(FORCA * eased));
-      if (p < 1) raf = requestAnimationFrame(tick);
+    const sh = (type: number, src: string) => {
+      const s = gl.createShader(type)!;
+      gl.shaderSource(s, src);
+      gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS))
+        console.error("warp shader:", gl.getShaderInfoLog(s));
+      return s;
     };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [fase, origem]);
+    const prog = gl.createProgram()!;
+    gl.attachShader(prog, sh(gl.VERTEX_SHADER, VERT));
+    gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FRAG));
+    gl.linkProgram(prog);
+    gl.useProgram(prog);
+
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER,
+      new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW);
+    const loc = gl.getAttribLocation(prog, "position");
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+
+    const U = {
+      tex: gl.getUniformLocation(prog, "uTex"),
+      res: gl.getUniformLocation(prog, "uRes"),
+      rect: gl.getUniformLocation(prog, "uRect"),
+      center: gl.getUniformLocation(prog, "uCenter"),
+      progress: gl.getUniformLocation(prog, "uProgress"),
+      dpr: gl.getUniformLocation(prog, "uDpr"),
+    };
+    gl.uniform1i(U.tex, 0);
+
+    const tex = gl.createTexture();
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    let rect = { x: 0, y: 0, w: 1, h: 1 };
+
+    apiRef.current = {
+      upload: (src, r) => {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, tex);
+        gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
+        rect = { x: r.left, y: r.top, w: r.width, h: r.height };
+        ready.current = true;
+      },
+    };
+
+    const resize = () => {
+      canvas.width = Math.floor(window.innerWidth * dpr);
+      canvas.height = Math.floor(window.innerHeight * dpr);
+      gl.viewport(0, 0, canvas.width, canvas.height);
+    };
+    resize();
+    window.addEventListener("resize", resize);
+
+    gl.clearColor(0, 0, 0, 0);
+    let raf = 0;
+    const loop = () => {
+      const a = anim.current;
+      if (a.active) {
+        const e = Math.min(1, (performance.now() - a.start) / a.dur);
+        const s = e * e * (3 - 2 * e); // smoothstep
+        progress.current = a.from + (a.to - a.from) * s;
+        if (e >= 1) a.active = false;
+      }
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      if (ready.current) {
+        gl.useProgram(prog);
+        gl.uniform2f(U.res, canvas.width, canvas.height);
+        gl.uniform4f(U.rect, rect.x, rect.y, rect.w, rect.h);
+        gl.uniform2f(U.center, window.innerWidth / 2, window.innerHeight / 2);
+        gl.uniform1f(U.progress, progress.current);
+        gl.uniform1f(U.dpr, dpr);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+      }
+      raf = requestAnimationFrame(loop);
+    };
+    loop();
+
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", resize);
+      apiRef.current = null;
+    };
+  }, []);
+
+  // ---- dispara captura/animacao conforme a fase ----
+  useEffect(() => {
+    let cancel = false;
+    if (fase === "caindo") {
+      const node = wrapperRef.current;
+      if (!node) return;
+      toCanvas(node, {
+        pixelRatio: Math.min(window.devicePixelRatio || 1, 1.5),
+        cacheBust: false,
+      })
+        .then((shot) => {
+          if (cancel) return;
+          apiRef.current?.upload(shot, node.getBoundingClientRect());
+          setOverlay(true); // esconde conteudo vivo, mostra o warp
+          // torce de 0 -> 1 ao longo de ~2.6s (da pra VER colapsando)
+          anim.current = { from: 0, to: 1, start: performance.now(), dur: 2600, active: true };
+        })
+        .catch((e) => console.error("captura falhou", e));
+    } else if (fase === "voltando") {
+      // destorce de volta
+      anim.current = { from: progress.current, to: 0, start: performance.now(), dur: 1300, active: true };
+    } else {
+      // parado
+      setOverlay(false);
+      ready.current = false;
+      progress.current = 0;
+      anim.current.active = false;
+    }
+    return () => {
+      cancel = true;
+    };
+  }, [fase]);
 
   return (
     <>
-      {/* filtro SVG invisivel; o CSS 'filter: url(#redemoinho)' usa ele */}
-      <svg width="0" height="0" aria-hidden style={{ position: "absolute" }}>
-        <filter
-          id="redemoinho"
-          filterUnits="userSpaceOnUse"
-          primitiveUnits="userSpaceOnUse"
-          x={banda.x}
-          y={banda.y}
-          width={banda.w}
-          height={banda.h}
-        >
-          <feImage
-            ref={feImgRef}
-            x={banda.x}
-            y={banda.y}
-            width={banda.w}
-            height={banda.h}
-            preserveAspectRatio="none"
-            result="mapa"
-          />
-          <feDisplacementMap
-            ref={dispRef}
-            in="SourceGraphic"
-            in2="mapa"
-            scale="0"
-            xChannelSelector="R"
-            yChannelSelector="G"
-          />
-        </filter>
-      </svg>
-
-      <motion.div
+      <canvas
+        ref={canvasRef}
+        aria-hidden
+        className="pointer-events-none fixed inset-0 z-40 h-full w-full"
+        style={{ opacity: overlay ? 1 : 0, transition: "opacity 150ms linear" }}
+      />
+      <div
         ref={wrapperRef}
-        initial={false}
-        style={{
-          transformOrigin: `${origem.x}px ${origem.y}px`,
-          transformPerspective: 900,
-          pointerEvents: colapsando ? "none" : "auto",
-          // o filtro so fica ativo durante o efeito (senao pesa o scroll)
-          filter: fase === "parado" ? "none" : "url(#redemoinho)",
-        }}
-        animate={
-          colapsando
-            ? {
-                // mergulha no Z + espirala + espaguetifica
-                z: [0, -180, -1400, -3800],
-                rotate: [0, 30, 170, 430],
-                scaleY: [1, 1.8, 6.5, 0.001],
-                scaleX: [1, 0.6, 0.05, 0.001],
-                opacity: [1, 1, 0.8, 0],
-              }
-            : {
-                // emerge do fundo desenrolando
-                z: [-3800, -1200, -120, 0],
-                rotate: [430, 170, 18, 0],
-                scaleY: [0.001, 5.5, 1.25, 1],
-                scaleX: [0.001, 0.06, 0.75, 1],
-                opacity: [0, 0.8, 1, 1],
-              }
-        }
-        transition={
-          colapsando
-            ? { duration: 1.8, times: [0, 0.45, 0.82, 1], ease: "easeIn" }
-            : { duration: 1.6, times: [0, 0.3, 0.75, 1], ease: "easeOut" }
-        }
         className="flex flex-1 flex-col"
+        style={{
+          opacity: overlay ? 0 : 1,
+          pointerEvents: fase === "parado" ? "auto" : "none",
+        }}
       >
         {children}
-      </motion.div>
+      </div>
     </>
   );
 }
 
-// O botao do easter egg.
 export function BotaoColapso() {
   const { disparar, fase } = useColapso();
-
   return (
     <button
       onClick={disparar}

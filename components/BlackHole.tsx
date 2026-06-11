@@ -3,7 +3,6 @@
 import { useEffect, useRef } from "react";
 import { useColapso } from "@/components/Colapso";
 
-// Vertex shader: so posiciona um retangulo que cobre a tela inteira.
 const VERT = `
 attribute vec2 position;
 void main() {
@@ -11,8 +10,6 @@ void main() {
 }
 `;
 
-// Fragment shader: calcula a COR de cada pixel. Aqui mora o buraco negro.
-// uCollapse (0 a 1) e a "forca extra" durante o colapso do site.
 const FRAG = `
 precision highp float;
 uniform float uTime;
@@ -20,75 +17,85 @@ uniform vec2 uResolution;
 uniform vec2 uMouse;
 uniform float uCollapse;
 
-// "ruido" pseudo-aleatorio para distribuir estrelas
 float hash(vec2 p){
   p = fract(p * vec2(123.34, 456.21));
   p += dot(p, p + 45.32);
   return fract(p.x * p.y);
 }
 
-// uma camada de estrelas
 float starLayer(vec2 uv, float density, float thresh){
   vec2 g = floor(uv * density);
   vec2 f = fract(uv * density);
   float h = hash(g);
   float s = step(thresh, h);
   float d = length(f - 0.5);
-  float star = s * smoothstep(0.3, 0.0, d);
-  star *= 0.6 + 0.4 * sin(uTime * 2.0 + h * 60.0); // pisca
+  float star = s * smoothstep(0.32, 0.0, d);
+  star *= 0.56 + 0.44 * sin(uTime * 2.0 + h * 60.0);
   return star;
 }
 
 void main(){
-  vec2 uv = gl_FragCoord.xy / uResolution.xy;     // 0..1
+  vec2 uv = gl_FragCoord.xy / uResolution.xy;
   float aspect = uResolution.x / uResolution.y;
 
-  vec2 p = uv - 0.5;  p.x *= aspect;              // centrado
-  vec2 m = uMouse - 0.5;  m.x *= aspect;
-  // durante o colapso o buraco vai pro CENTRO da tela (suga tudo pra la)
-  vec2 center = m * 0.35 * (1.0 - uCollapse);
+  vec2 p = uv - 0.5;
+  p.x *= aspect;
+  vec2 m = uMouse - 0.5;
+  m.x *= aspect;
 
+  vec2 center = m * 0.32 * (1.0 - uCollapse);
   vec2 d = p - center;
   float r = length(d);
-
-  // LENTE GRAVITACIONAL: forca cresce com o colapso
-  float forca = 0.05 + 0.22 * uCollapse;
-  float lens = min(forca / (r * r + 0.02), 3.0 + 3.0 * uCollapse);
   vec2 dir = d / (r + 1e-4);
-  float ang = lens * (1.0 + 1.2 * uCollapse);     // redemoinho mais violento
-  float ca = cos(ang), sa = sin(ang);
-  vec2 warped = center + mat2(ca, -sa, sa, ca) * d - dir * lens * 0.12;
 
-  // estrelas (amostradas nas coordenadas JA encurvadas) + leve deriva
-  vec2 suv = warped + vec2(uTime * 0.01, uTime * 0.004);
-  float field = starLayer(suv, 8.0, 0.93) + 0.5 * starLayer(suv * 2.0 + 5.0, 14.0, 0.96);
+  float gravity = 0.014 + 0.39 * uCollapse;
+  float lens = min(gravity / (r * r + 0.012), 5.2 + 5.5 * uCollapse);
+  float angle = lens * (1.15 + 2.2 * uCollapse);
+  float ca = cos(angle);
+  float sa = sin(angle);
+  vec2 warped = center + mat2(ca, -sa, sa, ca) * d - dir * lens * (0.09 + 0.05 * uCollapse);
 
-  vec3 col = vec3(0.03, 0.05, 0.10);              // navy profundo
-  col += field * vec3(0.7, 0.85, 1.0);
+  vec2 starUv = warped + vec2(uTime * 0.01, uTime * 0.004);
+  float stars =
+    starLayer(starUv, 8.0, 0.93) +
+    0.55 * starLayer(starUv * 2.0 + 5.0, 14.0, 0.96) +
+    0.25 * starLayer(starUv * 4.0 - 2.0, 25.0, 0.985);
 
-  // disco de acrescao (anel de menta girando) — cresce e brilha no colapso
-  float ringR = 0.17 + 0.07 * uCollapse;
-  float ring = smoothstep(0.045, 0.0, abs(r - ringR));
+  vec3 color = vec3(0.008, 0.012, 0.025);
+  color += stars * vec3(0.72, 0.84, 1.0) * (0.72 + 0.45 * uCollapse);
+
   float a = atan(d.y, d.x);
-  ring *= 0.5 + 0.5 * sin(a * 2.0 - uTime * (1.2 + 3.0 * uCollapse));
-  col += ring * vec3(0.37, 0.92, 0.83) * (1.4 + 1.6 * uCollapse);
+  vec2 diskP = vec2(d.x, d.y * (2.8 - 0.7 * uCollapse));
+  float diskR = length(diskP);
+  float diskBand = smoothstep(0.105, 0.0, abs(diskR - (0.075 + 0.195 * uCollapse)));
+  float diskGap = smoothstep(0.08, 0.13, diskR);
+  float turbulence =
+    0.64 +
+    0.36 * sin(a * 9.0 - uTime * (3.2 + 4.8 * uCollapse) + sin(diskR * 46.0));
+  float doppler = 0.5 + 0.5 * cos(a - 0.55);
+  vec3 hot = mix(vec3(1.0, 0.32, 0.12), vec3(0.55, 0.94, 1.0), doppler);
+  color += hot * diskBand * diskGap * turbulence * (0.035 + 3.4 * uCollapse);
 
-  // brilho externo suave
-  col += vec3(0.37, 0.92, 0.83) * (0.025 + 0.05 * uCollapse) / (r + 0.04);
+  float photon = smoothstep(0.012, 0.0, abs(r - (0.052 + 0.125 * uCollapse)));
+  color += vec3(1.0, 0.86, 0.62) * photon * (0.06 + 3.65 * uCollapse);
 
-  // horizonte de eventos: nucleo preto (engorda durante o colapso)
-  float nucleo = 0.14 + 0.05 * uCollapse;
-  float core = smoothstep(nucleo + 0.01, nucleo - 0.01, r);
-  col *= (1.0 - core);
+  color += vec3(0.42, 0.86, 1.0) * (0.0015 + 0.066 * uCollapse) / (r + 0.055);
+  color *= 1.0 - smoothstep(0.55, 1.15, length(p));
 
-  gl_FragColor = vec4(col, 1.0);
+  float horizon = 0.018 + 0.139 * uCollapse;
+  float core = smoothstep(horizon + 0.012, horizon - 0.004, r);
+  color *= (1.0 - core);
+  color += vec3(0.015, 0.02, 0.04) *
+    smoothstep(horizon, horizon + 0.08, r) *
+    (1.0 - smoothstep(0.42, 0.8, r));
+
+  gl_FragColor = vec4(color, 1.0);
 }
 `;
 
 export function BlackHole() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { colapsando } = useColapso();
-  // ref espelha o estado pro loop de render (que roda fora do React)
   const alvoColapso = useRef(0);
 
   useEffect(() => {
@@ -102,44 +109,54 @@ export function BlackHole() {
     if (!gl) return;
 
     const compile = (type: number, src: string) => {
-      const sh = gl.createShader(type)!;
-      gl.shaderSource(sh, src);
-      gl.compileShader(sh);
-      if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
-        console.error("Shader error:", gl.getShaderInfoLog(sh));
+      const shader = gl.createShader(type);
+      if (!shader) return null;
+      gl.shaderSource(shader, src);
+      gl.compileShader(shader);
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        console.error("Shader error:", gl.getShaderInfoLog(shader));
       }
-      return sh;
+      return shader;
     };
 
-    const prog = gl.createProgram()!;
-    gl.attachShader(prog, compile(gl.VERTEX_SHADER, VERT));
-    gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FRAG));
-    gl.linkProgram(prog);
-    gl.useProgram(prog);
+    const vert = compile(gl.VERTEX_SHADER, VERT);
+    const frag = compile(gl.FRAGMENT_SHADER, FRAG);
+    const program = gl.createProgram();
+    if (!program || !vert || !frag) return;
 
-    // retangulo de tela cheia (2 triangulos)
-    const buf = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.attachShader(program, vert);
+    gl.attachShader(program, frag);
+    gl.linkProgram(program);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      console.error("Program error:", gl.getProgramInfoLog(program));
+      return;
+    }
+    gl.useProgram(program);
+
+    const buffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
     gl.bufferData(
       gl.ARRAY_BUFFER,
       new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]),
       gl.STATIC_DRAW,
     );
-    const loc = gl.getAttribLocation(prog, "position");
-    gl.enableVertexAttribArray(loc);
-    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
 
-    const uTime = gl.getUniformLocation(prog, "uTime");
-    const uRes = gl.getUniformLocation(prog, "uResolution");
-    const uMouse = gl.getUniformLocation(prog, "uMouse");
-    const uCollapse = gl.getUniformLocation(prog, "uCollapse");
+    const position = gl.getAttribLocation(program, "position");
+    gl.enableVertexAttribArray(position);
+    gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
+
+    const uTime = gl.getUniformLocation(program, "uTime");
+    const uResolution = gl.getUniformLocation(program, "uResolution");
+    const uMouse = gl.getUniformLocation(program, "uMouse");
+    const uCollapse = gl.getUniformLocation(program, "uCollapse");
 
     const mouse = { x: 0.5, y: 0.5 };
-    const cur = { x: 0.5, y: 0.5 };
-    let collapse = 0; // valor suavizado de 0..1
-    const onMove = (e: PointerEvent) => {
-      mouse.x = e.clientX / window.innerWidth;
-      mouse.y = 1 - e.clientY / window.innerHeight; // y invertido (WebGL)
+    const current = { x: 0.5, y: 0.5 };
+    let collapse = 0;
+
+    const onMove = (event: PointerEvent) => {
+      mouse.x = event.clientX / window.innerWidth;
+      mouse.y = 1 - event.clientY / window.innerHeight;
     };
     window.addEventListener("pointermove", onMove);
 
@@ -152,29 +169,33 @@ export function BlackHole() {
     resize();
     window.addEventListener("resize", resize);
 
-    const reduced = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const start = performance.now();
-    let raf = 0;
+    let frame = 0;
+
     const render = () => {
-      const t = reduced ? 0 : (performance.now() - start) / 1000;
-      cur.x += (mouse.x - cur.x) * 0.05; // arrasto suave
-      cur.y += (mouse.y - cur.y) * 0.05;
-      collapse += (alvoColapso.current - collapse) * 0.045; // rampa lenta
-      gl.uniform1f(uTime, t);
-      gl.uniform2f(uRes, canvas.width, canvas.height);
-      gl.uniform2f(uMouse, cur.x, cur.y);
+      const time = reduced ? 0 : (performance.now() - start) / 1000;
+      current.x += (mouse.x - current.x) * 0.05;
+      current.y += (mouse.y - current.y) * 0.05;
+      collapse += (alvoColapso.current - collapse) * 0.06;
+
+      gl.uniform1f(uTime, time);
+      gl.uniform2f(uResolution, canvas.width, canvas.height);
+      gl.uniform2f(uMouse, current.x, current.y);
       gl.uniform1f(uCollapse, collapse);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
-      raf = requestAnimationFrame(render);
+      frame = requestAnimationFrame(render);
     };
     render();
 
     return () => {
-      cancelAnimationFrame(raf);
+      cancelAnimationFrame(frame);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("resize", resize);
+      gl.deleteBuffer(buffer);
+      gl.deleteProgram(program);
+      gl.deleteShader(vert);
+      gl.deleteShader(frag);
     };
   }, []);
 
