@@ -77,8 +77,8 @@ export const projetos: Projeto[] = [
     slug: "md-team",
     titulo: "MD Team — App de Treino e Dieta",
     resumo:
-      "Aplicativo mobile para uma consultoria esportiva, com treino e dieta do aluno. App em Flutter, back-end em FastAPI, vídeos dos exercícios no Cloudflare e hospedagem na Fly.io.",
-    tecnologias: ["Flutter", "Dart", "FastAPI", "Python", "Cloudflare", "Fly.io"],
+      "Aplicativo mobile para uma consultoria esportiva, com treino e dieta do aluno. App em Flutter, back-end em FastAPI hospedado na Railway, banco Postgres no Neon e vídeos dos exercícios no Cloudflare.",
+    tecnologias: ["Flutter", "Dart", "FastAPI", "Python", "Cloudflare", "Railway", "Neon"],
     destaque: true,
     ano: 2026,
     links: {},
